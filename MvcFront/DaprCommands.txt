@@ -1,0 +1,3 @@
+﻿
+Command to run mvc project:
+dapr run --app-id mvcfront --app-port 5002 --dapr-http-port 50002 dotnet run --components-path "..\components"
