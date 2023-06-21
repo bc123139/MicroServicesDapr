@@ -4,8 +4,12 @@ using FacesApi.Commands;
 using FacesApi.Events;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Azure.CognitiveServices.Vision.Face;
+using Microsoft.Azure.CognitiveServices.Vision.Face.Models;
 using Microsoft.Extensions.Logging;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Processing;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -18,11 +22,13 @@ namespace FacesApi.Controllers
     {
         private readonly ILogger<FacesController> _logger;
         private readonly DaprClient _daprClient;
+        private readonly AzureFaceConfiguration _config;
 
-        public FacesController(ILogger<FacesController> logger, DaprClient daprClient)
+        public FacesController(ILogger<FacesController> logger, DaprClient daprClient, AzureFaceConfiguration config)
         {
             _logger = logger;
             _daprClient = daprClient;
+            _config = config;
         }
 
         [Route("processorder")]
@@ -92,8 +98,42 @@ namespace FacesApi.Controllers
 
         private async Task<List<byte[]>> UploadPhotoAndDetectFaces(Image img, MemoryStream imageStream)
         {
+            string subKey = _config.AzureSubscriptionKey;
+            string endPoint = _config.AzureEndPoint;
+            IFaceClient client = Authenticate(endPoint, subKey);
             var faceList = new List<byte[]>();
+            IList<DetectedFace> faces = null;
+            try
+            {
+                int j = 0;
+                faces = await client.Face.DetectWithStreamAsync(imageStream, true, false, null);
+                foreach (var face in faces)
+                {
+                    int h = (int)(face.FaceRectangle.Height);
+                    int w = (int)(face.FaceRectangle.Width);
+                    int x = (int)(face.FaceRectangle.Left);
+                    int y = (int)(face.FaceRectangle.Top);
+                    img.Clone(ctx => ctx.Crop(new Rectangle(x, y, w, h))).Save("face" + j + ".jpg");
+                    var s = new MemoryStream();
+                    img.Clone(ctx => ctx.Crop(new Rectangle(x, y, w, h))).SaveAsJpeg(s);
+                    faceList.Add(s.ToArray());
+                    j++;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message);
+                throw;
+            }
             return faceList;
+        }
+
+        private static IFaceClient Authenticate(string endPoint, string subKey)
+        {
+            return new FaceClient(new ApiKeyServiceClientCredentials(subKey))
+            {
+                Endpoint = endPoint
+            };
         }
     }
 }
