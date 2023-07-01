@@ -1,0 +1,2 @@
+﻿Command to run facesapi project:
+dapr run --app-id facesapi --app-port 5004 --dapr-http-port 50004 dotnet run --components-path "..\components"

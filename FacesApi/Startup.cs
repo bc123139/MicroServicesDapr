@@ -39,6 +39,7 @@ namespace FacesApi
             });
             var config = new AzureFaceConfiguration();
             Configuration.Bind("AzureFaceCredentials", config);
+            services.AddSingleton(config);
             services.AddControllers().AddDapr();
             services.AddSwaggerGen(c =>
             {

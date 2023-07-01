@@ -63,5 +63,38 @@ namespace OrdersApi.Controllers
             }
                 return BadRequest();
         }
+
+
+        [Route("orderprocessed")]
+        [HttpPost()]
+        [Topic("eventbus", "OrderProcessedEvent")]
+        public async Task<IActionResult> OrderProcessed(OrderStatusChangedToProcessedCommand command)
+        {
+            _logger.LogInformation("OrderProcessed method entered");
+            if (ModelState.IsValid)
+            {
+                Order order = await _orderRepo.GetOrderAsync(command.OrderId);
+                if (order != null)
+                {
+                    order.Status = Status.Processed;
+                    int j = 1;
+                    foreach (var face in command.Faces)
+                    {
+                        Image img = Image.Load(face);
+                        img.Save("face" + j + ".jpg");
+                        j++;
+                        var orderDetail = new OrderDetail
+                        {
+                            OrderId = order.OrderId,
+                            FaceData = face
+                        };
+                        order.OrderDetails.Add(orderDetail);
+                    }
+
+                    await _orderRepo.UpdateOrder(order);
+                }
+            }
+            return Ok();
+        }
     }
 }
