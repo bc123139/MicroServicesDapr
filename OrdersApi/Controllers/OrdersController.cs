@@ -96,5 +96,25 @@ namespace OrdersApi.Controllers
             }
             return Ok();
         }
+
+        [Route("orderdispatched")]
+        [HttpPost()]
+        [Topic("eventbus", "OrderDispatchedEvent")]
+        public async Task<IActionResult> OrderDispatched(OrderStatusChangedToDispatched model)
+        {
+            if (ModelState.IsValid)
+            {
+                _logger.LogInformation("Order dispatched message received : " + model.OrderId);
+                Order order = await _orderRepo.GetOrderAsync(model.OrderId);
+                if (order != null)
+                {
+                    order.Status = Status.Dispatched;
+                    await _orderRepo.UpdateOrder(order);
+                    _logger.LogInformation("Order status changed to dispatched: " + model.OrderId);
+                }
+                return Ok();
+            }
+            return BadRequest();
+        }
     }
 }

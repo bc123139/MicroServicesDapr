@@ -1,0 +1,2 @@
+﻿Command to run notificationapi project:
+dapr run --app-id notificationapi --app-port 5005 --dapr-http-port 50005 dotnet run --components-path "..\components"
