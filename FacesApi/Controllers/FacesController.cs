@@ -17,12 +17,15 @@ using System.Threading.Tasks;
 
 namespace FacesApi.Controllers
 {
+    //[Route("api/[controller]")]
     [ApiController]
     public class FacesController : ControllerBase
     {
+
         private readonly ILogger<FacesController> _logger;
         private readonly DaprClient _daprClient;
         private readonly AzureFaceConfiguration _config;
+
 
         public FacesController(ILogger<FacesController> logger, DaprClient daprClient, AzureFaceConfiguration config)
         {
@@ -30,6 +33,8 @@ namespace FacesApi.Controllers
             _daprClient = daprClient;
             _config = config;
         }
+
+
 
         [Route("processorder")]
         [HttpPost]
@@ -42,11 +47,12 @@ namespace FacesApi.Controllers
                 _logger.LogInformation($"Command params: {command.OrderId}");
                 Image img = Image.Load(command.ImageData);
                 img.Save("dummy.jpg");
-                var orderState = await _daprClient.GetStateEntryAsync<List<ProcessOrderCommand>>("redisstore", "orderList");
+                var orderState = await _daprClient.
+                    GetStateEntryAsync<List<ProcessOrderCommand>>("redisstore", "orderList");
                 List<ProcessOrderCommand> orderList = new();
                 if (orderState.Value == null)
                 {
-                    _logger.LogInformation("OrderState Case 1 ");
+                    _logger.LogInformation("OrderState   Case 1 ");
                     orderList.Add(command);
                     await _daprClient.SaveStateAsync("redisstore", "orderList", orderList);
                 }
@@ -65,7 +71,9 @@ namespace FacesApi.Controllers
         public async Task<IActionResult> Cron()
         {
             _logger.LogInformation("Cron method entered");
-            var orderState = await _daprClient.GetStateEntryAsync<List<ProcessOrderCommand>>("redisstore", "orderList");
+            var orderState = await _daprClient.
+            GetStateEntryAsync<List<ProcessOrderCommand>>("redisstore", "orderList");
+
             if (orderState?.Value?.Count > 0)
             {
                 _logger.LogInformation($"Count value of the orders in the store {orderState.Value.Count}");
@@ -86,7 +94,9 @@ namespace FacesApi.Controllers
                         Faces = facesCropped
 
                     };
-                    await _daprClient.PublishEventAsync<OrderProcessedEvent>("eventbus", "OrderProcessedEvent", ope);
+
+                    await _daprClient.
+                        PublishEventAsync<OrderProcessedEvent>("eventbus", "OrderProcessedEvent", ope);
                     orderList.Remove(firstInTheList);
                     await _daprClient.SaveStateAsync("redisstore", "orderList", orderList);
                     _logger.LogInformation($"Order List count after processing  {orderList.Count}");
@@ -105,8 +115,8 @@ namespace FacesApi.Controllers
             IList<DetectedFace> faces = null;
             try
             {
-                int j = 0;
                 faces = await client.Face.DetectWithStreamAsync(imageStream, true, false, null);
+                int j = 0;
                 foreach (var face in faces)
                 {
                     int h = (int)(face.FaceRectangle.Height);
@@ -123,7 +133,6 @@ namespace FacesApi.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex.Message);
-                throw;
             }
             return faceList;
         }
