@@ -27,14 +27,28 @@ namespace OrdersApi
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddDbContext<OrdersContext>(options =>
-               options.UseSqlServer(Configuration.GetConnectionString("OrdersConnection")));
+            services.AddSingleton<IConfig>(Configuration.GetSection("CustomConfig")?.Get<Config>());
+            //services.AddDbContext<OrdersContext>(options =>
+            //   options.UseSqlServer(Configuration.GetConnectionString("OrdersConnection")));
+            AddDbContexts(services);
             services.AddTransient<IOrderRepository, OrderRepository>();
             services.AddControllers().AddDapr();
             services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new OpenApiInfo { Title = "OrdersApi", Version = "v1" });
             });
+        }
+
+        public void AddDbContexts(IServiceCollection services)
+        {
+
+            services.AddDbContext<OrdersContext>(opt =>
+            {
+                var connectionString = Configuration.GetConnectionString("sql-order") ??
+                "name=OrdersConnection";
+                Console.Write("ConString:" + connectionString + " ");
+                opt.UseSqlServer(connectionString, opt => opt.EnableRetryOnFailure(5));
+            }, ServiceLifetime.Transient);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -57,6 +71,22 @@ namespace OrdersApi
                 endpoints.MapControllers();
                 endpoints.MapSubscribeHandler();
             });
+            TryRunMigrations(app);
+        }
+
+        private void TryRunMigrations(IApplicationBuilder app)
+        {
+            var config = app.ApplicationServices.GetService<IConfig>();
+            if (config?.RunDbMigrations == true)
+            {
+                using (var scope = app.ApplicationServices.CreateScope())
+                {
+                    var dbContext = scope.ServiceProvider.GetRequiredService<OrdersContext>();
+                    dbContext.Database.Migrate();
+                }
+            }
+
+
         }
     }
 }
